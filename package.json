@@ -1,0 +1,8 @@
+{
+  "name": "ml-service",
+  "version": "1.0.0",
+  "main": "app/main.py",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
