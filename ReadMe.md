@@ -1303,6 +1303,6 @@ KaryaKavach is designed as an **insurer-partnered parametric protection platform
 
 **Phase 1 Demo Video:** https://www.youtube.com/watch?v=Q77hxJIc8bY
 
-**Phase 2 Demo Video:** https://www.youtube.com/watch?v=Q77hxJIc8bY
+**Phase 2 Demo Video with UI:** https://youtu.be/A7hcn3ZBKR0
 
 **Team:** [Hackuracy] | Guidewire DEVTrails 2026
