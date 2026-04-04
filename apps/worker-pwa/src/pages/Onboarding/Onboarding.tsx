@@ -11,9 +11,9 @@ const CITIES = [
 ];
 
 const TIERS = [
-  { id: "basic",    label: "Basic",    base: 49,  payout: "₹280/day", color: "#1D9E75" },
-  { id: "standard", label: "Standard", base: 89,  payout: "₹416/day", color: "#378ADD" },
-  { id: "premium",  label: "Premium",  base: 149, payout: "₹560/day", color: "#7F77DD" },
+  { id: "basic",    label: "Basic",    base: 49,  payout: "₹280/day", color: "#4ecbff" },
+  { id: "standard", label: "Standard", base: 89,  payout: "₹416/day", color: "#2f99ff" },
+  { id: "premium",  label: "Premium",  base: 149, payout: "₹560/day", color: "#79b9ff" },
 ];
 
 const SEASONS: Record<string, string> = {
@@ -203,44 +203,122 @@ export default function Onboarding() {
   if (done) return <SuccessScreen workerName={name.trim() || "Partner"} zone={zones.find(z => z.id === zone)?.label ?? zone} premium={quote?.finalPremium ?? 89} tier={tier} />;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0E1A", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "'DM Sans', system-ui, sans-serif", padding: "0 0 40px" }}>
+    <div style={{ minHeight: "100vh", background: "#050b17", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "'DM Sans', system-ui, sans-serif", padding: "0 0 40px", position: "relative", overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
         * { box-sizing: border-box; }
+        .bg-grid {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(84,212,255,0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(84,212,255,0.08) 1px, transparent 1px);
+          background-size: 34px 34px;
+          opacity: 0.2;
+          pointer-events: none;
+        }
+        .bg-watermark {
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          z-index: 1;
+          display: grid;
+          place-items: center;
+          font-family: 'Space Mono', monospace;
+          font-size: clamp(54px, 12vw, 170px);
+          color: rgba(87, 217, 255, 0.055);
+          letter-spacing: 0.12em;
+          font-weight: 700;
+          text-transform: uppercase;
+          animation: watermarkDrift 14s ease-in-out infinite;
+        }
+        .bg-orb {
+          position: absolute;
+          width: 280px;
+          height: 280px;
+          border-radius: 999px;
+          filter: blur(50px);
+          pointer-events: none;
+          animation: floaty 8s ease-in-out infinite;
+        }
+        .bg-orb.one { right: -80px; top: -80px; background: rgba(84,212,255,0.2); }
+        .bg-orb.two { left: -100px; bottom: 120px; background: rgba(53,145,255,0.22); animation-delay: 2s; }
+        .panel {
+          position: relative;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 18px;
+          background: rgba(255,255,255,0.03);
+          backdrop-filter: blur(7px);
+          padding: 0 0 18px;
+          animation: fadeUp 0.45s ease both;
+        }
+        .ambient-zone {
+          margin-top: 16px;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+          animation: fadeUp 0.55s ease both;
+        }
+        .ambient-card {
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 14px;
+          background: rgba(255,255,255,0.03);
+          padding: 12px;
+        }
+        .ambient-k {
+          margin: 0 0 4px;
+          font-size: 11px;
+          color: rgba(255,255,255,0.45);
+          letter-spacing: 0.06em;
+        }
+        .ambient-v {
+          margin: 0;
+          font-size: 16px;
+          color: #a4edff;
+          font-weight: 700;
+        }
         .gs-input { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 13px 16px; color: #fff; font-size: 15px; font-family: 'DM Sans', system-ui, sans-serif; outline: none; transition: border-color 0.2s; }
-        .gs-input:focus { border-color: rgba(55,138,221,0.7); }
+        .gs-input:focus { border-color: rgba(84,212,255,0.75); }
         .gs-input::placeholder { color: rgba(255,255,255,0.3); }
         .gs-btn { width: 100%; padding: 14px; border-radius: 10px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif; transition: opacity 0.15s, transform 0.1s; }
         .gs-btn:active { transform: scale(0.98); }
-        .gs-btn-primary { background: #378ADD; color: #fff; }
+        .gs-btn-primary { background: linear-gradient(90deg, #1f96ff, #4fd7ff); color: #eaf6ff; }
         .gs-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         .gs-btn-ghost { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.1); }
         .gs-select { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 13px 16px; color: #fff; font-size: 15px; font-family: 'DM Sans', system-ui, sans-serif; outline: none; appearance: none; cursor: pointer; }
         .gs-select option { background: #1a1f2e; }
         .zone-chip { padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); font-size: 14px; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', system-ui, sans-serif; }
-        .zone-chip.active { border-color: #378ADD; background: rgba(55,138,221,0.15); color: #fff; }
+        .zone-chip.active { border-color: #55d7ff; background: rgba(85,215,255,0.16); color: #fff; }
         .earn-chip { padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); font-size: 14px; cursor: pointer; transition: all 0.15s; text-align: center; font-family: 'DM Sans', system-ui, sans-serif; }
-        .earn-chip.active { border-color: #1D9E75; background: rgba(29,158,117,0.15); color: #fff; }
+        .earn-chip.active { border-color: #55d7ff; background: rgba(85,215,255,0.15); color: #fff; }
         .tier-card { padding: 16px; border-radius: 12px; border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.15s; }
-        .tier-card.active { background: rgba(55,138,221,0.1); }
+        .tier-card.active { background: rgba(85,215,255,0.12); }
         .otp-box { width: 52px; height: 56px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; color: #fff; font-size: 22px; font-weight: 700; text-align: center; font-family: 'Space Mono', monospace; outline: none; transition: border-color 0.2s; }
-        .otp-box:focus { border-color: #378ADD; }
+        .otp-box:focus { border-color: #55d7ff; }
         .plat-btn { flex: 1; padding: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', system-ui, sans-serif; font-weight: 500; }
-        .plat-btn.active { border-color: #378ADD; background: rgba(55,138,221,0.15); color: #fff; }
+        .plat-btn.active { border-color: #55d7ff; background: rgba(85,215,255,0.16); color: #fff; }
         .err { color: #f09595; font-size: 12px; margin-top: 4px; }
         .label { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 7px; letter-spacing: 0.03em; }
         .fade-in { animation: fadeUp 0.35s ease both; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes floaty { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-14px);} }
+        @keyframes watermarkDrift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 420, padding: "0 20px" }}>
+      <div className="bg-grid" />
+      <div className="bg-watermark">KARYAKAVACH</div>
+      <div className="bg-orb one" />
+      <div className="bg-orb two" />
+
+      <div style={{ width: "100%", maxWidth: 420, padding: "0 20px", position: "relative", zIndex: 2 }}>
+        <div className="panel">
         <div style={{ paddingTop: 28, paddingBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontFamily: "'Space Mono', monospace", color: "#378ADD", fontSize: 13, fontWeight: 700, letterSpacing: "0.05em" }}>KARYAKAVACH</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", color: "#56d8ff", fontSize: 13, fontWeight: 700, letterSpacing: "0.05em" }}>KARYAKAVACH</span>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{step}/5</span>
           </div>
           <div style={{ height: 2, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-            <div style={{ height: 2, width: `${progress}%`, background: "linear-gradient(90deg,#1D9E75,#378ADD)", borderRadius: 2, transition: "width 0.4s ease" }} />
+            <div style={{ height: 2, width: `${progress}%`, background: "linear-gradient(90deg,#1f95ff,#55d8ff)", borderRadius: 2, transition: "width 0.4s ease" }} />
           </div>
         </div>
 
@@ -322,7 +400,7 @@ export default function Onboarding() {
               ))}
             </div>
             {errors.zone && <p className="err">{errors.zone}</p>}
-            <div style={{ marginTop: 20, padding: "12px 14px", background: "rgba(55,138,221,0.08)", borderRadius: 8, border: "1px solid rgba(55,138,221,0.2)" }}>
+            <div style={{ marginTop: 20, padding: "12px 14px", background: "rgba(85,215,255,0.1)", borderRadius: 8, border: "1px solid rgba(85,215,255,0.24)" }}>
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", margin: 0 }}>Coverage is zone-specific. A trigger in Koramangala does not pay Whitefield workers. This is how we keep premiums low.</p>
             </div>
             <button className="gs-btn gs-btn-primary" style={{ marginTop: 20 }} onClick={goStep3}>Continue</button>
@@ -377,7 +455,7 @@ export default function Onboarding() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <span style={{ fontWeight: 600, color: "#fff", fontSize: 15 }}>{t.label}</span>
-                      {t.id === "standard" && <span style={{ marginLeft: 8, fontSize: 11, background: "rgba(55,138,221,0.2)", color: "#85b7eb", padding: "2px 8px", borderRadius: 20 }}>Most popular</span>}
+                      {t.id === "standard" && <span style={{ marginLeft: 8, fontSize: 11, background: "rgba(85,215,255,0.2)", color: "#a7ecff", padding: "2px 8px", borderRadius: 20 }}>Most popular</span>}
                     </div>
                     <span style={{ fontFamily: "'Space Mono', monospace", color: t.color, fontWeight: 700, fontSize: 15 }}>₹{t.base}+</span>
                   </div>
@@ -413,12 +491,24 @@ export default function Onboarding() {
               ))}
             </div>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", margin: "12px 0 0", lineHeight: 1.6 }}>By activating, you agree to the KaryaKavach policy terms. Your location is used only for zone matching and purged after 30 days (DPDPA 2023).</p>
-            <button className="gs-btn gs-btn-primary" style={{ marginTop: 16, background: "#1D9E75" }} disabled={submitting} onClick={finish}>
+            <button className="gs-btn gs-btn-primary" style={{ marginTop: 16 }} disabled={submitting} onClick={finish}>
               {submitting ? "Activating coverage..." : `Activate — Pay ₹${quote?.finalPremium ?? "—"}/week`}
             </button>
             <button className="gs-btn gs-btn-ghost" style={{ marginTop: 8 }} onClick={() => setStep(4)}>Back</button>
           </div>
         )}
+        </div>
+
+        <div className="ambient-zone" aria-hidden="true">
+          <div className="ambient-card">
+            <p className="ambient-k">LIVE RISK MONITOR</p>
+            <p className="ambient-v">Weather + AQI + Zone Signals</p>
+          </div>
+          <div className="ambient-card">
+            <p className="ambient-k">AUTOMATED PAYOUT</p>
+            <p className="ambient-v">UPI dispatch in minutes</p>
+          </div>
+        </div>
       </div>
     </div>
   );

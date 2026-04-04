@@ -1,16 +1,5 @@
 import { useEffect, useState } from "react";
 
-const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
-  * { box-sizing: border-box; }
-  .fade-in { animation: fadeUp 0.35s ease both; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  .gs-btn { width: 100%; padding: 14px; border-radius: 10px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif; transition: opacity 0.15s; }
-  .gs-btn-primary { background: #378ADD; color: #fff; }
-  .pulse { animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
-`;
-
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 type PolicyTrigger = {
@@ -36,6 +25,109 @@ type PolicyOverview = {
   payoutMethod?: string;
   coveredTriggers?: PolicyTrigger[];
 };
+
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Sora:wght@600;700&display=swap');
+  * { box-sizing: border-box; }
+  .policy-page {
+    min-height: 100vh;
+    color: var(--gs-text);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    padding-bottom: 96px;
+  }
+  .wrap { max-width: 460px; margin: 0 auto; padding: 24px 18px 0; }
+  .hero {
+    border: 1px solid var(--gs-border);
+    border-radius: 18px;
+    background:
+      radial-gradient(240px 120px at 92% -10%, rgba(83, 206, 255, 0.23), transparent 72%),
+      var(--gs-surface);
+    padding: 16px;
+    animation: riseIn .45s cubic-bezier(.2,.7,0,1) both;
+  }
+  .hero h1 { margin: 0; font-family: 'Sora', sans-serif; font-size: 24px; }
+  .hero p { margin: 8px 0 0; color: var(--gs-muted); font-size: 13px; }
+  .badge {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    border: 1px solid rgba(67, 201, 255, 0.38);
+    background: rgba(67, 201, 255, 0.12);
+    color: #98e8ff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #55d7ff;
+    box-shadow: 0 0 0 0 #55d7ff;
+    animation: pulse 1.8s infinite;
+  }
+  .plan {
+    margin-top: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(77, 199, 255, 0.36);
+    background: linear-gradient(160deg, rgba(13, 28, 44, 0.8), rgba(8, 20, 36, 0.75));
+    padding: 14px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--gs-border);
+    padding: 8px 0;
+    gap: 10px;
+  }
+  .row:last-child { border-bottom: none; }
+  .k { color: var(--gs-muted); font-size: 12px; }
+  .v { color: var(--gs-text); font-size: 13px; font-weight: 600; text-align: right; }
+  .section-title {
+    margin: 18px 0 8px;
+    color: var(--gs-muted);
+    letter-spacing: .08em;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .trigger {
+    border-radius: 12px;
+    border: 1px solid var(--gs-border);
+    background: var(--gs-surface);
+    padding: 11px;
+    margin-bottom: 8px;
+    animation: riseIn .45s cubic-bezier(.2,.7,0,1) both;
+  }
+  .trigger-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .trigger h4 { margin: 0; font-size: 14px; }
+  .trigger p { margin: 4px 0 0; color: var(--gs-muted); font-size: 12px; line-height: 1.45; }
+  .state {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(67, 201, 255, 0.4);
+    color: #98e8ff;
+    background: rgba(67, 201, 255, 0.12);
+    white-space: nowrap;
+  }
+  .cta {
+    margin-top: 14px;
+    border: none;
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #1a8eff 0%, #52d7ff 100%);
+    color: #eaf6ff;
+    font-weight: 700;
+    font-family: 'Sora', sans-serif;
+    cursor: pointer;
+  }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+`;
 
 export default function Policy() {
   const [loading, setLoading] = useState(true);
@@ -98,90 +190,52 @@ export default function Policy() {
   }, []);
 
   if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#fff", display: "grid", placeItems: "center" }}>
-        {recovering ? "Creating policy..." : "Loading policy..."}
-      </div>
-    );
+    return <div className="policy-page"><style>{STYLES}</style><div className="wrap">{recovering ? "Creating policy..." : "Loading policy..."}</div></div>;
   }
 
   if (error) {
-    return <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#fca5a5", display: "grid", placeItems: "center", padding: 24 }}>{error}</div>;
+    return <div className="policy-page"><style>{STYLES}</style><div className="wrap">{error}</div></div>;
   }
 
   if (!policy?.hasPolicy) {
-    return <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#fff", display: "grid", placeItems: "center", padding: 24 }}>{policy?.message || "No active policy found"}</div>;
+    return <div className="policy-page"><style>{STYLES}</style><div className="wrap">{policy?.message || "No active policy found"}</div></div>;
   }
 
   const triggers = policy.coveredTriggers || [];
   const validTill = policy.validTill ? new Date(policy.validTill).toLocaleDateString() : "--";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0E1A", fontFamily: "'DM Sans', system-ui, sans-serif", paddingBottom: 80 }}>
+    <div className="policy-page">
       <style>{STYLES}</style>
+      <div className="wrap">
+        <div className="hero">
+          <h1>Policy Coverage</h1>
+          <p>Member: {policy.workerName || "Worker"} | {policy.weekLabel || "Current weekly cycle"}</p>
+          <div className="badge"><span className="dot" /> ACTIVE</div>
 
-      <div style={{ padding: "28px 20px 0", maxWidth: 420, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <span style={{ fontFamily: "'Space Mono', monospace", color: "#378ADD", fontSize: 13, fontWeight: 700, letterSpacing: "0.05em" }}>KARYAKAVACH</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(29,158,117,0.12)", border: "1px solid rgba(29,158,117,0.3)", borderRadius: 20, padding: "6px 12px" }}>
-            <div className="pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "#1D9E75" }} />
-            <span style={{ fontSize: 12, color: "#1D9E75", fontWeight: 600 }}>ACTIVE</span>
+          <div className="plan">
+            <div className="row"><span className="k">Plan</span><span className="v">{policy.plan || "Standard"}</span></div>
+            <div className="row"><span className="k">Weekly Premium</span><span className="v">INR {policy.weeklyPremium ?? 0}</span></div>
+            <div className="row"><span className="k">Zone</span><span className="v">{policy.zone || "--"}</span></div>
+            <div className="row"><span className="k">Max Daily Payout</span><span className="v">INR {policy.maxDailyPayout ?? 0}</span></div>
+            <div className="row"><span className="k">Max Weekly Payout</span><span className="v">INR {policy.maxWeeklyPayout ?? 0}</span></div>
+            <div className="row"><span className="k">Valid Till</span><span className="v">{validTill}</span></div>
+            <div className="row"><span className="k">Payout Method</span><span className="v">{policy.payoutMethod || "UPI"}</span></div>
           </div>
         </div>
 
-        <p style={{ fontSize: 22, fontWeight: 600, color: "#fff", margin: "0 0 4px" }}>Your Policy</p>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", margin: "0 0 4px" }}>Member: {policy.workerName || "Worker"}</p>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", margin: "0 0 24px" }}>{policy.weekLabel || "Current weekly policy"}</p>
-
-        <div className="fade-in" style={{ background: "linear-gradient(135deg, rgba(55,138,221,0.15), rgba(29,158,117,0.1))", border: "1px solid rgba(55,138,221,0.25)", borderRadius: 16, padding: "20px", marginBottom: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <div>
-              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Plan</p>
-              <p style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 700, color: "#fff" }}>{policy.plan}</p>
+        <p className="section-title">COVERED TRIGGERS</p>
+        {triggers.map((trigger, index) => (
+          <div key={`${trigger.type}-${index}`} className="trigger" style={{ animationDelay: `${index * 0.05}s` }}>
+            <div className="trigger-head">
+              <h4>{trigger.label}</h4>
+              <span className="state">{trigger.active ? "Active" : "Monitoring"}</span>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Weekly Premium</p>
-              <p style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 700, color: "#378ADD", fontFamily: "'Space Mono', monospace" }}>₹{policy.weeklyPremium ?? 0}</p>
-            </div>
-          </div>
-
-          {[
-            ["Zone", policy.zone || "--"],
-            ["Max daily payout", `₹${policy.maxDailyPayout ?? 0}/day`],
-            ["Max weekly payout", `₹${policy.maxWeeklyPayout ?? 0}/week`],
-            ["Policy valid till", validTill],
-            ["Claim eligibility", policy.claimEligibility || "--"],
-            ["Payout method", policy.payoutMethod || "--"],
-          ].map(([k, v]) => (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{k}</span>
-              <span style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{v}</span>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 10px", letterSpacing: "0.03em" }}>COVERED TRIGGERS</p>
-        {triggers.map((t, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "rgba(255,255,255,0.03)", border: `1px solid ${t.active ? "rgba(29,158,117,0.2)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, marginBottom: 8 }}>
-            <span style={{ fontSize: 20 }}>{t.icon}</span>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: 14, color: t.active ? "#fff" : "rgba(255,255,255,0.4)", fontWeight: 500 }}>{t.label}</p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{t.desc}</p>
-            </div>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.active ? "#1D9E75" : "rgba(255,255,255,0.15)" }} />
+            <p>{trigger.desc}</p>
           </div>
         ))}
 
-        <div style={{ marginTop: 16, padding: "14px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>NOT COVERED</p>
-          {["Health, accidents, hospitalisation", "Vehicle damage or repair", "Low order demand (no trigger)", "Voluntary time off"].map((item) => (
-            <p key={item} style={{ margin: "4px 0", fontSize: 13, color: "rgba(255,255,255,0.3)" }}>✕ {item}</p>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 24 }}>
-          <button className="gs-btn gs-btn-primary">Renew for next week — ₹{policy.weeklyPremium ?? 0}</button>
-        </div>
+        <button className="cta" type="button">Renew Next Week</button>
       </div>
     </div>
   );

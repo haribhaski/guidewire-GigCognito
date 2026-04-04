@@ -10,8 +10,13 @@ import { checkCurfewTrigger } from "../trigger/curfew-trigger.service";
 import { checkFestivalTrigger } from "../trigger/festival-trigger.service";
 
 const prisma = new PrismaClient();
-const OWM_KEY = process.env.OWM_API_KEY;
-const WAQI_TOKEN = process.env.WAQI_TOKEN;
+
+function getProviderTokens() {
+  return {
+    owmKey: process.env.OWM_API_KEY,
+    waqiToken: process.env.WAQI_TOKEN,
+  };
+}
 
 const KNOWN_ZONE_COORDS: Record<string, { city: string; lat: number; lng: number; riskLevel: "HIGH" | "MEDIUM" | "LOW" }> = {
   BLR_KOR_01: { city: "Bengaluru", lat: 12.9279, lng: 77.6271, riskLevel: "HIGH" },
@@ -24,6 +29,57 @@ const KNOWN_ZONE_COORDS: Record<string, { city: string; lat: number; lng: number
   PNE_KSB_01: { city: "Pune", lat: 18.5204, lng: 73.8567, riskLevel: "MEDIUM" },
   PNE_KHR_01: { city: "Pune", lat: 18.5519, lng: 73.9477, riskLevel: "MEDIUM" },
 };
+
+function resolveKnownZone(zoneId: string) {
+  return KNOWN_ZONE_COORDS[zoneId] || KNOWN_ZONE_COORDS.BLR_KOR_01;
+}
+
+async function fetchLiveMetricsForZone(zone: { id: string; city: string; lat: number; lng: number; riskLevel: string }) {
+  const { owmKey, waqiToken } = getProviderTokens();
+
+  let currentTempC: number | null = null;
+  let currentAqi: number | null = null;
+  let currentRainMm1h: number | null = null;
+  let currentWeatherText: string | null = null;
+
+  if (owmKey) {
+    try {
+      const weatherRes = await axios.get("https://api.openweathermap.org/data/2.5/weather", {
+        params: {
+          lat: zone.lat,
+          lon: zone.lng,
+          units: "metric",
+          appid: owmKey,
+        },
+        timeout: 4000,
+      });
+      currentTempC = weatherRes.data?.main?.temp ?? null;
+      currentRainMm1h = weatherRes.data?.rain?.["1h"] ?? 0;
+      currentWeatherText = weatherRes.data?.weather?.[0]?.description ?? null;
+    } catch (err) {
+      console.error("[worker-dashboard] weather fetch failed", err);
+    }
+  }
+
+  if (waqiToken) {
+    try {
+      const aqiRes = await axios.get(`https://api.waqi.info/feed/geo:${zone.lat};${zone.lng}/`, {
+        params: { token: waqiToken },
+        timeout: 4000,
+      });
+      currentAqi = aqiRes.data?.data?.aqi ?? null;
+    } catch (err) {
+      console.error("[worker-dashboard] AQI fetch failed", err);
+    }
+  }
+
+  return {
+    currentTempC,
+    currentAqi,
+    currentRainMm1h,
+    currentWeatherText,
+  };
+}
 
 function triggerTypeToLabel(type: string): string {
   switch (type) {
@@ -137,19 +193,21 @@ export async function getWorkerDashboard(workerId: string, zoneId: string) {
   let seasonContext = getSeasonContextFromTypes(activeTriggerTypes);
 
   // Live now-cast metrics
+  const { owmKey, waqiToken } = getProviderTokens();
+
   let currentTempC: number | null = null;
   let currentAqi: number | null = null;
   let currentRainMm1h: number | null = null;
   let currentWeatherText: string | null = null;
 
-  if (zone && OWM_KEY) {
+  if (zone && owmKey) {
     try {
       const weatherRes = await axios.get("https://api.openweathermap.org/data/2.5/weather", {
         params: {
           lat: zone.lat,
           lon: zone.lng,
           units: "metric",
-          appid: OWM_KEY,
+          appid: owmKey,
         },
         timeout: 4000,
       });
@@ -161,10 +219,10 @@ export async function getWorkerDashboard(workerId: string, zoneId: string) {
     }
   }
 
-  if (zone && WAQI_TOKEN) {
+  if (zone && waqiToken) {
     try {
       const aqiRes = await axios.get(`https://api.waqi.info/feed/geo:${zone.lat};${zone.lng}/`, {
-        params: { token: WAQI_TOKEN },
+        params: { token: waqiToken },
         timeout: 4000,
       });
       currentAqi = aqiRes.data?.data?.aqi ?? null;
@@ -213,5 +271,51 @@ export async function getWorkerDashboard(workerId: string, zoneId: string) {
       trigger: p.claimId,
       date: p.createdAt,
     })),
+  };
+}
+
+export async function getLiveDashboardByZone(zoneId: string) {
+  const known = resolveKnownZone(zoneId);
+  const zone = {
+    id: zoneId,
+    city: known.city,
+    lat: known.lat,
+    lng: known.lng,
+    riskLevel: known.riskLevel,
+  };
+
+  const liveTypes = await getLiveActiveTriggerTypes(zone);
+  const activeTriggerTypes = Array.from(liveTypes);
+  const riskSignals = activeTriggerTypes.map(triggerTypeToLabel);
+
+  let seasonContext = getSeasonContextFromTypes(activeTriggerTypes);
+  const liveMetrics = await fetchLiveMetricsForZone(zone);
+
+  if (!seasonContext || seasonContext === "Risk conditions monitored") {
+    if (typeof liveMetrics.currentAqi === "number" && liveMetrics.currentAqi >= 150) {
+      seasonContext = "AQI season";
+    } else if (typeof liveMetrics.currentRainMm1h === "number" && liveMetrics.currentRainMm1h >= 5) {
+      seasonContext = "Monsoon season";
+    } else if (typeof liveMetrics.currentTempC === "number" && liveMetrics.currentTempC >= 38) {
+      seasonContext = "Heat-risk season";
+    }
+  }
+
+  return {
+    zone: zone.city,
+    zoneRisk: zone.riskLevel,
+    seasonContext,
+    workerName: "Worker",
+    payoutPool: 1200000,
+    riskSignals,
+    activeTriggers: activeTriggerTypes,
+    currentTempC: liveMetrics.currentTempC,
+    currentAqi: liveMetrics.currentAqi,
+    currentRainMm1h: liveMetrics.currentRainMm1h,
+    currentWeatherText: liveMetrics.currentWeatherText,
+    lastPayout: null,
+    earnedThisWeek: 0,
+    claimsThisWeek: 0,
+    recentPayouts: [],
   };
 }

@@ -1,150 +1,119 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
-  * { box-sizing: border-box; }
-  .fade-in { animation: fadeUp 0.35s ease both; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  .nav-btn { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 16px; border-radius: 8px; transition: background 0.15s; }
-  .claim-row { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s; cursor: pointer; }
-  .claim-row:hover { background: rgba(255,255,255,0.02); }
-  .tab-btn { flex: 1; padding: 9px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif; border-radius: 8px; transition: all 0.15s; }
-`;
+import { useMemo, useState } from "react";
 
 const CLAIMS = [
-  { id: "CLM-001", date: "Apr 4, 2026",  time: "11:07 AM", trigger: "Heavy Rainfall",    zone: "Koramangala", amount: 416, status: "PAID",     hours: 8, icon: "🌧️", fraudScore: 0.12, sources: ["OWM ✓", "IMD ✓"] },
-  { id: "CLM-002", date: "Apr 1, 2026",  time: "02:14 PM", trigger: "Heavy Rainfall",    zone: "Koramangala", amount: 416, status: "PAID",     hours: 8, icon: "🌧️", fraudScore: 0.09, sources: ["OWM ✓", "IMD ✓"] },
-  { id: "CLM-003", date: "Mar 28, 2026", time: "09:30 AM", trigger: "Severe AQI (412)",  zone: "Koramangala", amount: 280, status: "PAID",     hours: 4, icon: "😷", fraudScore: 0.08, sources: ["WAQI ✓", "CPCB ✓"] },
-  { id: "CLM-004", date: "Mar 22, 2026", time: "06:05 PM", trigger: "Festival Blockage", zone: "Koramangala", amount: 208, status: "PAID",     hours: 4, icon: "🎉", fraudScore: 0.05, sources: ["PMC ✓", "Zone ✓"] },
-  { id: "CLM-005", date: "Mar 19, 2026", time: "03:45 PM", trigger: "AQI Advisory",      zone: "Koramangala", amount: 0,   status: "REJECTED", hours: 0, icon: "😷", fraudScore: 0.82, sources: ["WAQI ✓", "CPCB ✗"] },
-];
+  { id: "CLM-001", date: "Apr 4, 2026", time: "11:07 AM", trigger: "Heavy Rainfall", zone: "Koramangala", amount: 416, status: "PAID", hours: 8, fraudScore: 0.12, sources: ["OWM", "IMD"] },
+  { id: "CLM-002", date: "Apr 1, 2026", time: "02:14 PM", trigger: "Heavy Rainfall", zone: "Koramangala", amount: 416, status: "PAID", hours: 8, fraudScore: 0.09, sources: ["OWM", "IMD"] },
+  { id: "CLM-003", date: "Mar 28, 2026", time: "09:30 AM", trigger: "Severe AQI", zone: "Koramangala", amount: 280, status: "PAID", hours: 4, fraudScore: 0.08, sources: ["WAQI", "CPCB"] },
+  { id: "CLM-004", date: "Mar 19, 2026", time: "03:45 PM", trigger: "AQI Advisory", zone: "Koramangala", amount: 0, status: "REJECTED", hours: 0, fraudScore: 0.82, sources: ["WAQI", "CPCB"] },
+] as const;
 
-const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  PAID:       { color: "#1D9E75", bg: "rgba(29,158,117,0.12)"  },
-  PENDING:    { color: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
-  REJECTED:   { color: "#f87171", bg: "rgba(248,113,113,0.12)" },
-  REVIEWING:  { color: "#378ADD", bg: "rgba(55,138,221,0.12)"  },
-};
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Sora:wght@600;700&display=swap');
+  * { box-sizing: border-box; }
+  .claims-page { min-height: 100vh; color: var(--gs-text); font-family: 'DM Sans', system-ui, sans-serif; padding-bottom: 96px; }
+  .wrap { max-width: 460px; margin: 0 auto; padding: 24px 18px 0; }
+  .hero {
+    border-radius: 18px;
+    border: 1px solid var(--gs-border);
+    background:
+      radial-gradient(220px 120px at 92% 0%, rgba(75, 205, 255, 0.23), transparent 74%),
+      var(--gs-surface);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .hero h1 { margin: 0; font-family: 'Sora', sans-serif; font-size: 24px; }
+  .hero p { margin: 7px 0 0; color: var(--gs-muted); font-size: 13px; }
+  .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .mini { border: 1px solid var(--gs-border); border-radius: 12px; background: var(--gs-surface); padding: 10px; }
+  .mini .k { margin: 0; color: var(--gs-muted); font-size: 10px; }
+  .mini .v { margin: 5px 0 0; font-size: 16px; font-weight: 700; font-family: 'Sora', sans-serif; color: #72ddff; }
+  .tabs { display: flex; gap: 6px; margin: 12px 0; }
+  .tab { flex: 1; border: 1px solid var(--gs-border); border-radius: 10px; background: var(--gs-surface); color: var(--gs-muted); padding: 9px; cursor: pointer; font-weight: 700; font-size: 12px; }
+  .tab.active { color: #96e8ff; border-color: rgba(89, 217, 255, 0.42); background: rgba(73, 205, 255, 0.12); }
+  .claim {
+    border: 1px solid var(--gs-border);
+    border-radius: 13px;
+    background: var(--gs-surface);
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 120ms ease;
+  }
+  .claim:hover { border-color: rgba(89, 217, 255, 0.42); }
+  .head { display: flex; justify-content: space-between; gap: 10px; }
+  .title { margin: 0; font-size: 14px; font-weight: 700; }
+  .sub { margin: 4px 0 0; color: var(--gs-muted); font-size: 12px; }
+  .amount { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; color: #79e2ff; text-align: right; }
+  .status { margin-top: 4px; font-size: 11px; border-radius: 999px; padding: 3px 8px; display: inline-block; }
+  .paid { color: #89e9ff; background: rgba(79, 213, 255, 0.14); border: 1px solid rgba(79, 213, 255, 0.35); }
+  .rejected { color: #ff838a; background: rgba(255, 112, 126, 0.12); border: 1px solid rgba(255, 112, 126, 0.3); }
+  .details { margin-top: 10px; border-top: 1px solid var(--gs-border); padding-top: 8px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+  .k { color: var(--gs-muted); font-size: 12px; }
+  .v { color: var(--gs-text); font-size: 12px; font-weight: 600; text-align: right; }
+`;
 
 export default function Claims() {
-  const navigate = useNavigate();
-  const [filter, setFilter] = useState<"ALL"|"PAID"|"REJECTED">("ALL");
-  const [expanded, setExpanded] = useState<string|null>(null);
+  const [filter, setFilter] = useState<"ALL" | "PAID" | "REJECTED">("ALL");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
-  const filtered = filter === "ALL" ? CLAIMS : CLAIMS.filter(c => c.status === filter);
-  const totalPaid = CLAIMS.filter(c => c.status === "PAID").reduce((s, c) => s + c.amount, 0);
+  const filtered = useMemo(
+    () => (filter === "ALL" ? CLAIMS : CLAIMS.filter((claim) => claim.status === filter)),
+    [filter]
+  );
+
+  const totalPaid = useMemo(
+    () => CLAIMS.filter((claim) => claim.status === "PAID").reduce((sum, claim) => sum + claim.amount, 0),
+    []
+  );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0E1A", fontFamily: "'DM Sans', system-ui, sans-serif", paddingBottom: 80 }}>
+    <div className="claims-page">
       <style>{STYLES}</style>
+      <div className="wrap">
+        <div className="hero">
+          <h1>Claim Ledger</h1>
+          <p>Real-time auto-claim processing with full transparency.</p>
 
-      <div style={{ padding: "28px 20px 0", maxWidth: 420, margin: "0 auto" }}>
-
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <span style={{ fontFamily: "'Space Mono', monospace", color: "#378ADD", fontSize: 13, fontWeight: 700, letterSpacing: "0.05em" }}>KARYAKAVACH</span>
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Claims History</span>
-        </div>
-
-        {/* Summary */}
-        <div className="fade-in" style={{ background: "rgba(29,158,117,0.08)", border: "1px solid rgba(29,158,117,0.2)", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>
-          <p style={{ margin: "0 0 4px", fontSize: 13, color: "rgba(255,255,255,0.45)" }}>Total earned back this month</p>
-          <p style={{ margin: "0 0 12px", fontSize: 32, fontWeight: 700, color: "#1D9E75", fontFamily: "'Space Mono', monospace" }}>₹{totalPaid.toLocaleString()}</p>
-          <div style={{ display: "flex", gap: 16 }}>
-            <div>
-              <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Auto-paid claims</p>
-              <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: "#fff" }}>{CLAIMS.filter(c => c.status === "PAID").length}</p>
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Zero paperwork filed</p>
-              <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: "#fff" }}>0 forms</p>
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Avg payout time</p>
-              <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: "#fff" }}>~7 min</p>
-            </div>
+          <div className="summary">
+            <div className="mini"><p className="k">Earned Back</p><p className="v">INR {totalPaid}</p></div>
+            <div className="mini"><p className="k">Auto Paid</p><p className="v">{CLAIMS.filter((claim) => claim.status === "PAID").length}</p></div>
+            <div className="mini"><p className="k">Avg Time</p><p className="v">7m</p></div>
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 4 }}>
-          {(["ALL", "PAID", "REJECTED"] as const).map(f => (
-            <button key={f} className="tab-btn"
-              style={{ background: filter === f ? "rgba(55,138,221,0.2)" : "transparent", color: filter === f ? "#378ADD" : "rgba(255,255,255,0.4)" }}
-              onClick={() => setFilter(f)}>
-              {f}
-            </button>
+        <div className="tabs">
+          {(["ALL", "PAID", "REJECTED"] as const).map((tab) => (
+            <button key={tab} className={`tab ${filter === tab ? "active" : ""}`} onClick={() => setFilter(tab)}>{tab}</button>
           ))}
         </div>
 
-        {/* Claims List */}
-        {filtered.map((c, i) => {
-          const st = STATUS_STYLE[c.status];
-          const isOpen = expanded === c.id;
+        {filtered.map((claim) => {
+          const open = expanded === claim.id;
           return (
-            <div key={c.id} className="claim-row fade-in" style={{ animationDelay: `${i * 0.05}s`, borderRadius: isOpen ? 12 : 0, border: isOpen ? "1px solid rgba(55,138,221,0.2)" : "none", marginBottom: isOpen ? 8 : 0, background: isOpen ? "rgba(55,138,221,0.05)" : "transparent" }}
-              onClick={() => setExpanded(isOpen ? null : c.id)}>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 4px" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-                  {c.icon}
+            <div key={claim.id} className="claim" onClick={() => setExpanded(open ? null : claim.id)}>
+              <div className="head">
+                <div>
+                  <p className="title">{claim.trigger}</p>
+                  <p className="sub">{claim.date} | {claim.time} | {claim.zone}</p>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#fff" }}>{c.trigger}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.35)" }}>{c.date} · {c.time}</p>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  {c.amount > 0 && <p style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 700, color: "#1D9E75", fontFamily: "'Space Mono', monospace" }}>+₹{c.amount}</p>}
-                  <span style={{ fontSize: 11, fontWeight: 600, color: st.color, background: st.bg, padding: "2px 8px", borderRadius: 10 }}>{c.status}</span>
+                <div>
+                  <div className="amount">{claim.amount > 0 ? `+INR ${claim.amount}` : "INR 0"}</div>
+                  <span className={`status ${claim.status === "PAID" ? "paid" : "rejected"}`}>{claim.status}</span>
                 </div>
               </div>
 
-              {/* Expanded detail */}
-              {isOpen && (
-                <div className="fade-in" style={{ padding: "0 4px 14px" }}>
-                  <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px" }}>
-                    <p style={{ margin: "0 0 10px", fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.05em" }}>CLAIM DETAILS</p>
-                    {[
-                      ["Claim ID",       c.id],
-                      ["Zone",           c.zone],
-                      ["Hours affected", c.hours > 0 ? `${c.hours} hours` : "—"],
-                      ["Data sources",   c.sources.join("  ")],
-                      ["Fraud score",    c.fraudScore < 0.5 ? `${c.fraudScore} — Clean ✓` : `${c.fraudScore} — Flagged ⚠`],
-                      ["Process",        "Zero-touch auto-claim"],
-                    ].map(([k, v]) => (
-                      <div key={k as string} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.38)" }}>{k}</span>
-                        <span style={{ fontSize: 12, color: (k as string) === "Fraud score" && c.fraudScore >= 0.5 ? "#f87171" : "#fff", fontWeight: 500 }}>{v}</span>
-                      </div>
-                    ))}
-                    {c.status === "REJECTED" && (
-                      <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(248,113,113,0.08)", borderRadius: 6, border: "1px solid rgba(248,113,113,0.2)" }}>
-                        <p style={{ margin: 0, fontSize: 12, color: "#f87171" }}>CPCB second source did not confirm AQI ≥ 400. Dual-source rule not met. <span style={{ textDecoration: "underline", cursor: "pointer" }}>Appeal within 72 hrs →</span></p>
-                      </div>
-                    )}
-                  </div>
+              {open && (
+                <div className="details">
+                  <div className="row"><span className="k">Claim ID</span><span className="v">{claim.id}</span></div>
+                  <div className="row"><span className="k">Hours Affected</span><span className="v">{claim.hours || 0}</span></div>
+                  <div className="row"><span className="k">Data Sources</span><span className="v">{claim.sources.join(" + ")}</span></div>
+                  <div className="row"><span className="k">Fraud Score</span><span className="v">{claim.fraudScore}</span></div>
                 </div>
               )}
             </div>
           );
         })}
-
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 20 }}>All claims are fully automated. You never need to file anything.</p>
-      </div>
-
-      {/* Bottom Nav */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(10,14,26,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", justifyContent: "space-around", padding: "8px 0 12px" }}>
-        {[
-          { id: "home",   icon: "⊞", label: "Home",   path: "/dashboard" },
-          { id: "policy", icon: "🛡", label: "Policy",  path: "/policy"    },
-          { id: "claims", icon: "💸", label: "Claims",  path: "/claims"    },
-        ].map(n => (
-          <button key={n.id} className="nav-btn" onClick={() => navigate(n.path)}>
-            <span style={{ fontSize: 20 }}>{n.icon}</span>
-            <span style={{ fontSize: 11, color: n.id === "claims" ? "#378ADD" : "rgba(255,255,255,0.35)", fontWeight: n.id === "claims" ? 600 : 400 }}>{n.label}</span>
-          </button>
-        ))}
       </div>
     </div>
   );

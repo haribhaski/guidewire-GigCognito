@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 interface Proposal {
   id: string;
@@ -9,42 +11,174 @@ interface Proposal {
   createdAt: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-
-const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; bg: string; border: string }> = {
-  APPROVED: { label: "Approved", dot: "#1D9E75", text: "#5DCAA5", bg: "rgba(29,158,117,0.10)", border: "rgba(29,158,117,0.25)" },
-  UNDER_REVIEW: { label: "Under review", dot: "#378ADD", text: "#85B7EB", bg: "rgba(55,138,221,0.10)", border: "rgba(55,138,221,0.30)" },
-  LESS_VOTES: { label: "Less votes", dot: "#EF9F27", text: "#FAC775", bg: "rgba(239,159,39,0.10)", border: "rgba(239,159,39,0.25)" },
-  REJECTED: { label: "Rejected",  dot: "#D85A30", text: "#F0997B", bg: "rgba(216,90,48,0.10)",  border: "rgba(216,90,48,0.25)"  },
-};
-
-function getStatus(s: string) {
-  return STATUS_CONFIG[s?.toUpperCase()] ?? STATUS_CONFIG.LESS_VOTES;
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-const TRIGGER_TYPES = ["Waterlogging", "AQI / Pollution", "Rainfall", "Curfew / Bandh", "Heatwave", "Festival blockage", "App outage", "Other"];
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Sora:wght@500;700&display=swap');
+  * { box-sizing: border-box; }
+  .vote-page {
+    min-height: 100vh;
+    color: var(--gs-text);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    padding-bottom: 96px;
+  }
+  .vote-wrap {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 26px 18px 0;
+  }
+  .hero {
+    border-radius: 18px;
+    border: 1px solid var(--gs-border);
+    background:
+      radial-gradient(180px 90px at 92% 0%, rgba(93, 220, 255, 0.2), transparent 70%),
+      var(--gs-surface);
+    padding: 16px;
+    margin-bottom: 14px;
+    animation: riseIn 420ms cubic-bezier(0.2, 0.7, 0, 1) both;
+  }
+  .title {
+    margin: 0;
+    font-family: 'Sora', sans-serif;
+    font-size: 23px;
+    line-height: 1.2;
+  }
+  .sub {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--gs-muted);
+    line-height: 1.55;
+  }
+  .form {
+    border: 1px solid var(--gs-border);
+    border-radius: 16px;
+    background: var(--gs-surface);
+    padding: 14px;
+    margin-bottom: 16px;
+    animation: riseIn 520ms cubic-bezier(0.2, 0.7, 0, 1) both;
+  }
+  .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--gs-muted);
+    margin: 0 0 6px;
+  }
+  .input,
+  .textarea {
+    width: 100%;
+    border: 1px solid var(--gs-border);
+    background: var(--gs-surface-strong);
+    color: var(--gs-text);
+    border-radius: 12px;
+    padding: 12px;
+    outline: none;
+    transition: border-color 120ms ease;
+    font-size: 14px;
+  }
+  .input:focus,
+  .textarea:focus {
+    border-color: var(--gs-accent);
+  }
+  .textarea { min-height: 98px; resize: vertical; }
+  .btn {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    background: linear-gradient(90deg, #1d90ff 0%, #4cd4ff 100%);
+    color: #eaf6ff;
+    width: 100%;
+    margin-top: 10px;
+    transition: transform 120ms ease;
+    font-family: 'Sora', sans-serif;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .status {
+    margin-top: 10px;
+    font-size: 13px;
+    text-align: center;
+  }
+  .status.ok { color: #1cc291; }
+  .status.err { color: #ff6c77; }
+  .section {
+    margin-top: 14px;
+  }
+  .section h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--gs-muted);
+  }
+  .card {
+    border: 1px solid var(--gs-border);
+    background: var(--gs-surface);
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 10px;
+    animation: riseIn 430ms cubic-bezier(0.2, 0.7, 0, 1) both;
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .card-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gs-text);
+  }
+  .pill {
+    border-radius: 999px;
+    padding: 3px 9px;
+    border: 1px solid rgba(104, 217, 255, 0.32);
+    background: rgba(104, 217, 255, 0.13);
+    color: #9ce7ff;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .desc {
+    margin: 6px 0 8px;
+    color: var(--gs-muted);
+    line-height: 1.55;
+    font-size: 13px;
+  }
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--gs-muted);
+  }
+  .vote-btn {
+    margin-top: 10px;
+    border: 1px solid var(--gs-border);
+    background: var(--gs-surface-strong);
+    color: var(--gs-text);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 120ms ease;
+  }
+  .vote-btn:hover { border-color: #b8ff1a; }
+  .vote-btn:hover { border-color: #67dcff; }
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
 
 export default function CommunityTriggersPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [triggerType, setTriggerType] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingList, setLoadingList] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"ALL" | "UNDER_REVIEW" | "LESS_VOTES" | "REJECTED">("ALL");
-  const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
-  const [formOpen, setFormOpen] = useState(false);
 
   const authHeaders = (): Record<string, string> => {
     const token = localStorage.getItem("gs_token");
@@ -52,232 +186,127 @@ export default function CommunityTriggersPage() {
   };
 
   useEffect(() => {
-    async function load() {
-      setLoadingList(true);
-      try {
-        const res = await fetch(`${API_BASE}/api/community-triggers/list`, { headers: authHeaders() });
-        const data = await res.json();
-        if (res.ok && Array.isArray(data)) {
-          setProposals(data);
-        }
-      } catch {
-        setError("Unable to load reports right now.");
-      }
-      finally { setLoadingList(false); }
-    }
-    load();
+    fetch(`${API_BASE}/api/community-triggers/list`, { headers: { ...authHeaders() } })
+      .then((res) => res.json())
+      .then((data) => setProposals(Array.isArray(data) ? data : []))
+      .catch(() => setProposals([]));
   }, []);
 
-  async function handlePropose(e: React.FormEvent) {
+  const ranked = useMemo(() => [...proposals].sort((a, b) => b.votes - a.votes), [proposals]);
+
+  const handlePropose = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setError(null); setSuccess(null);
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
       const res = await fetch(`${API_BASE}/api/community-triggers/propose`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ title, description, triggerType }),
+        body: JSON.stringify({ title, description }),
       });
+
       const data = await res.json();
       if (res.ok) {
-        setSuccess("Posted. News check completed instantly.");
-        setProposals(p => [data, ...p]);
-        setTitle(""); setDescription(""); setTriggerType(""); setFormOpen(false);
+        setSuccess("Proposal submitted successfully");
+        setProposals((p) => [...p, data]);
+        setTitle("");
+        setDescription("");
       } else {
-        setError(typeof data?.error === "string" ? data.error : "Unable to submit report.");
+        setError(data.error || data.message || "Failed to submit proposal");
       }
     } catch {
-      setError("Unable to submit report.");
+      setError("Network error while submitting");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  };
 
-  async function handleVote(id: string) {
-    if (votedIds.has(id)) return;
+  const handleVote = async (id: string) => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
       const res = await fetch(`${API_BASE}/api/community-triggers/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ proposalId: id }),
       });
+
       const data = await res.json();
       if (res.ok) {
-        setVotedIds(s => new Set([...s, id]));
-        setProposals(p => p.map(pr => (pr.id === id ? data : pr)));
+        setSuccess("Vote recorded");
+        setProposals((p) => p.map((item) => (item.id === id ? data : item)));
       } else {
-        setError(typeof data?.error === "string" ? data.error : "Unable to cast vote.");
+        setError(data.error || data.message || "Vote failed");
       }
     } catch {
-      setError("Unable to cast vote.");
+      setError("Network error while voting");
+    } finally {
+      setLoading(false);
     }
-  }
-
-  const filtered = proposals
-    .filter(p => filter === "ALL" || p.status.toUpperCase() === filter)
-    .sort((a, b) => b.votes - a.votes);
-
-  const counts = {
-    ALL: proposals.length,
-    UNDER_REVIEW: proposals.filter(p => p.status.toUpperCase() === "UNDER_REVIEW").length,
-    LESS_VOTES: proposals.filter(p => p.status.toUpperCase() === "LESS_VOTES").length,
-    REJECTED: proposals.filter(p => p.status.toUpperCase() === "REJECTED").length,
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080B14", color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Space+Mono:wght@400;700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        .gs-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 14px; font-family: 'DM Sans', system-ui, sans-serif; outline: none; transition: border-color 0.2s, background 0.2s; resize: none; }
-        .gs-input:focus { border-color: rgba(55,138,221,0.6); background: rgba(55,138,221,0.05); }
-        .gs-input::placeholder { color: rgba(255,255,255,0.25); }
-        .gs-select { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 14px; font-family: 'DM Sans', system-ui, sans-serif; outline: none; appearance: none; cursor: pointer; }
-        .gs-select option { background: #141824; }
-        .btn-primary { background: #378ADD; color: #fff; border: none; border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif; transition: opacity 0.15s, transform 0.1s; width: 100%; }
-        .btn-primary:hover { opacity: 0.88; }
-        .btn-primary:active { transform: scale(0.98); }
-        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-ghost { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; padding: 11px 20px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif; transition: background 0.15s; width: 100%; }
-        .btn-ghost:hover { background: rgba(255,255,255,0.08); }
-        .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.10); background: transparent; color: rgba(255,255,255,0.45); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', system-ui, sans-serif; white-space: nowrap; }
-        .filter-btn.active { background: rgba(55,138,221,0.15); border-color: rgba(55,138,221,0.4); color: #85B7EB; }
-        .vote-btn { padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: 'Space Mono', monospace; display: flex; align-items: center; gap: 6px; }
-        .vote-btn:hover:not(:disabled) { border-color: rgba(29,158,117,0.5); background: rgba(29,158,117,0.1); color: #5DCAA5; }
-        .vote-btn.voted { border-color: rgba(29,158,117,0.4); background: rgba(29,158,117,0.12); color: #5DCAA5; cursor: default; }
-        .vote-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px 20px; transition: border-color 0.2s; }
-        .card:hover { border-color: rgba(255,255,255,0.13); }
-        .propose-btn { display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 10px; border: 1px dashed rgba(55,138,221,0.35); background: rgba(55,138,221,0.07); color: #85B7EB; font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; font-family: 'DM Sans', system-ui, sans-serif; transition: all 0.15s; justify-content: center; }
-        .propose-btn:hover { background: rgba(55,138,221,0.12); border-color: rgba(55,138,221,0.5); }
-        .slide-in { animation: slideIn 0.3s ease both; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-        .fade-up { animation: fadeUp 0.35s ease both; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .rank-bar { height: 2px; background: rgba(55,138,221,0.25); border-radius: 1px; margin-top: 10px; overflow: hidden; }
-        .rank-fill { height: 100%; background: linear-gradient(90deg, #1D9E75, #378ADD); border-radius: 1px; transition: width 0.6s ease; }
-        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-      `}</style>
-
-      <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px 60px" }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: "#378ADD", fontWeight: 700, letterSpacing: "0.1em", background: "rgba(55,138,221,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(55,138,221,0.2)" }}>KARYAKAVACH</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.06em" }}>COMMUNITY</span>
-          </div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 8 }}>Trigger board</h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>Report disruptions in your zone. Proposals with enough community votes are reviewed for automatic payout triggers.</p>
+    <div className="vote-page">
+      <style>{STYLES}</style>
+      <div className="vote-wrap">
+        <div className="hero">
+          <h1 className="title">Community Trigger Voting</h1>
+          <p className="sub">
+            Propose new disruption signals and vote what should be covered next. Top ideas move to actuarial review.
+          </p>
         </div>
 
-        {/* Stats row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 24 }}>
-          {[
-            { label: "Total reports", val: proposals.length, color: "#378ADD" },
-            { label: "Under review", val: counts.UNDER_REVIEW, color: "#1D9E75" },
-            { label: "Less votes", val: counts.LESS_VOTES, color: "#EF9F27" },
-          ].map(s => (
-            <div key={s.label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "14px 16px" }}>
-              <p style={{ fontSize: 22, fontWeight: 700, color: s.color, fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{s.val}</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>{s.label}</p>
+        <form className="form" onSubmit={handlePropose}>
+          <p className="label">TRIGGER TITLE</p>
+          <input
+            className="input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Example: Metro strike disruption"
+            required
+          />
+
+          <p className="label" style={{ marginTop: 10 }}>DESCRIPTION</p>
+          <textarea
+            className="textarea"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Why this matters for your zone and earnings"
+            required
+          />
+
+          <button className="btn" type="submit" disabled={loading}>
+            {loading ? "Submitting..." : "Submit Proposal"}
+          </button>
+
+          {error && <div className="status err">{error}</div>}
+          {success && <div className="status ok">{success}</div>}
+        </form>
+
+        <div className="section">
+          <h3>TOP PROPOSALS</h3>
+          {ranked.length === 0 && <div className="card">No proposals yet. Be the first to submit one.</div>}
+          {ranked.map((proposal, idx) => (
+            <div className="card" key={proposal.id} style={{ animationDelay: `${idx * 0.05}s` }}>
+              <div className="card-head">
+                <p className="card-title">{proposal.title}</p>
+                <span className="pill">{proposal.status}</span>
+              </div>
+              <p className="desc">{proposal.description}</p>
+              <div className="meta">
+                <span>{proposal.votes} votes</span>
+                <span>{new Date(proposal.createdAt).toLocaleDateString()}</span>
+              </div>
+              <button className="vote-btn" type="button" onClick={() => handleVote(proposal.id)} disabled={loading}>
+                Upvote this trigger
+              </button>
             </div>
           ))}
         </div>
-
-        {/* Propose button / form */}
-        {!formOpen ? (
-          <button className="propose-btn" style={{ marginBottom: 24 }} onClick={() => setFormOpen(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Report a disruption in your zone
-          </button>
-        ) : (
-          <div className="card slide-in" style={{ marginBottom: 24, borderColor: "rgba(55,138,221,0.2)" }}>
-            <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>New disruption report</p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>Be specific — include location, time, and how it's affecting deliveries.</p>
-            <form onSubmit={handlePropose} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Disruption type</p>
-                <select className="gs-select" value={triggerType} onChange={e => setTriggerType(e.target.value)} required>
-                  <option value="" disabled>Select type</option>
-                  {TRIGGER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Title</p>
-                <input className="gs-input" placeholder="e.g. Waterlogging near Andheri East depot" value={title} onChange={e => setTitle(e.target.value)} required />
-              </div>
-              <div>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Details</p>
-                <textarea className="gs-input" placeholder="Describe what happened, where, and the delivery impact" value={description} onChange={e => setDescription(e.target.value)} required rows={3} />
-              </div>
-              {error && <p style={{ fontSize: 12, color: "#F0997B" }}>{error}</p>}
-              {success && <p style={{ fontSize: 12, color: "#5DCAA5" }}>{success}</p>}
-              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 2 }}>{loading ? "Submitting…" : "Submit report"}</button>
-                <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={() => setFormOpen(false)}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 18, overflowX: "auto", paddingBottom: 2 }}>
-          {(["ALL", "UNDER_REVIEW", "LESS_VOTES", "REJECTED"] as const).map(f => (
-            <button key={f} className={`filter-btn${filter === f ? " active" : ""}`} onClick={() => setFilter(f)}>
-              {f === "ALL" ? `All (${counts.ALL})` : f === "UNDER_REVIEW" ? `Under review (${counts.UNDER_REVIEW})` : f === "LESS_VOTES" ? `Less votes (${counts.LESS_VOTES})` : `Rejected (${counts.REJECTED})`}
-            </button>
-          ))}
-        </div>
-
-        {/* List */}
-        {loadingList && (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.25)", fontSize: 14 }}>Loading reports…</div>
-        )}
-
-        {!loadingList && filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.25)", fontSize: 14 }}>No reports yet. Be the first to flag a disruption.</div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {filtered.map((p, i) => {
-            const cfg = getStatus(p.status);
-            const maxVotes = Math.max(...proposals.map(x => x.votes), 1);
-            const voted = votedIds.has(p.id);
-            return (
-              <div key={p.id} className="card fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`, display: "flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dot, display: "inline-block" }} />
-                        {cfg.label}
-                      </span>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{timeAgo(p.createdAt)}</span>
-                    </div>
-                    <p style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, marginBottom: 6, color: "#fff" }}>{p.title}</p>
-                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>{p.description}</p>
-                    <div className="rank-bar">
-                      <div className="rank-fill" style={{ width: `${Math.round((p.votes / maxVotes) * 100)}%` }} />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                    <button className={`vote-btn${voted ? " voted" : ""}`} onClick={() => handleVote(p.id)} disabled={voted}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill={voted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                      {p.votes}
-                    </button>
-                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", textAlign: "center" }}>votes</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer note */}
-        {filtered.length > 0 && (
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 28, lineHeight: 1.7 }}>
-            Reports are news-verified at submission. Only reports with more than 50% zone votes move to review.
-          </p>
-        )}
       </div>
     </div>
   );
