@@ -1062,9 +1062,9 @@ The admin panel (`/admin-dashboard`) is the operations nerve centre:
 
 ## 18. Community Voting for New Triggers (2026)
 
-**What:** Workers can propose and vote on new parametric triggers (e.g., "Flooded Street", "Festival Blockage").
+**What:** Workers can report and vote on **hyperlocal disruptions** not covered by city-wide parametric triggers — a flooded street, an unmarked road closure, a sudden local protest. A community-verified proposal with enough zone support elevates to admin review and can seed a new trigger type.
 
-**Why:** Makes the platform participatory and adaptive to real-world, hyperlocal risks. Ensures only genuine, community-backed triggers are considered.
+**Why:** City-level data APIs miss hyperlocal reality. A dark store lane that floods every monsoon will never appear in an IMD district alert. Workers on the ground are the most accurate sensor for these events. Making the platform participatory closes that gap and builds genuine trust.
 
 **How:**
 - `/api/community-triggers/propose` — Propose a new trigger (one per worker per event)
@@ -1082,6 +1082,43 @@ The admin panel (`/admin-dashboard`) is the operations nerve centre:
   : `LESS_VOTES` (news verified, but vote share ≤ 50%)
   : `UNDER_REVIEW` (news verified and vote share > 50%)
 - Powered by `/src/services/worker/community-triggers.service.ts`
+
+### Live Photo Evidence — AI Duplicate Detection
+
+When a worker submits a hyperlocal disruption proposal, they are required to attach **a live camera photo taken at that moment** — no gallery uploads permitted. This single constraint eliminates the most common evidence-fraud vector (reusing old photos).
+
+**Verification pipeline:**
+
+```
+Worker opens proposal form
+        ↓
+App opens device camera directly (no file picker shown)
+        ↓
+Worker captures photo in real-time (EXIF timestamp + GPS embedded)
+        ↓
+Photo sent to AI similarity check:
+  → Perceptual hash (pHash) computed for the new image
+  → Compared against hashes of all photos submitted in
+    the same zone in the past 72 hours
+  → Cosine similarity > 0.92 → DUPLICATE flagged → proposal rejected
+  → No match found → photo accepted as fresh evidence
+        ↓
+Proposal submitted with photo as supporting evidence
+```
+
+**Why duplicate detection works as a fraud signal:**
+
+A genuine disruption produces many *visually distinct* photos — different workers, angles, distances, lighting. A coordinated fraud ring reusing a single photo (or slight crops/rotations of it) produces near-identical hashes that cluster together. The system does not need to verify *what* is in the photo — only that it is *new and unique*.
+
+| Scenario | System Action |
+|---|---|
+| Fresh photo, no similar image in zone in past 72 hrs | ✅ Accepted as evidence |
+| Photo matches an existing submission (similarity > 0.92) | ❌ Rejected — duplicate photo detected |
+| Photo EXIF timestamp > 10 min old | ❌ Rejected — not a live capture |
+| GPS coordinates in EXIF outside worker's registered zone | ❌ Rejected — location mismatch |
+| Photo captured but GPS/EXIF stripped (some Android browsers) | ⚠️ Flagged for admin review, not auto-rejected |
+
+**Implementation note (Phase 3):** pHash comparison runs server-side in the Python ML service. No photo content is stored permanently — only the perceptual hash and metadata (zone, timestamp, proposal ID) are retained. Raw images are purged after 48 hours in line with DPDPA 2023 data minimisation requirements.
 
 ---
 
