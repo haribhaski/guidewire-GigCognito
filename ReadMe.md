@@ -22,11 +22,9 @@
 13. [Real-Time Data Integration](#13-real-time-data-integration)
 14. [Onboarding Flow](#14-onboarding-flow)
 15. [Payout Processing](#15-payout-processing)
-16. [Dashboard Design](#16-dashboard-design)
-17. [Non-Functional Requirements](#17-non-functional-requirements)
-18. [Development Roadmap](#18-development-roadmap)
-19. [Business Viability & Regulatory Alignment](#19-business-viability--regulatory-alignment)
-20. [Appendix: Data Sources](#20-appendix-data-sources)
+
+21. [Worker Transparency Dashboard](#21-worker-transparency-dashboard)
+22. [Community Voting for New Triggers](#22-community-voting-for-new-triggers)
 
 ---
 
@@ -871,6 +869,37 @@ Razorpay error → retry 3× with exponential backoff (1 min, 5 min, 15 min) →
 ---
 
 ## 16. Dashboard Design
+
+---
+
+## 21. Worker Transparency Dashboard (2026)
+
+**What:** A real-time dashboard for gig workers showing trigger status, payout pool, and risk signals for their zone.
+
+**Why:** Empowers workers with full visibility into how/when payouts are triggered, their risk exposure, and the health of the payout pool. Builds trust and transparency.
+
+**How:**
+- `/api/worker-dashboard/overview` returns all relevant data for the logged-in worker.
+- Strict authentication; only the worker can view their own dashboard.
+- Powered by `/src/services/worker/worker-dashboard.service.ts`.
+
+---
+
+## 22. Community Voting for New Triggers (2026)
+
+**What:** Workers can propose and vote on new parametric triggers (e.g., "Flooded Street", "Festival Blockage").
+
+**Why:** Makes the platform participatory and adaptive to real-world, hyperlocal risks. Ensures only genuine, community-backed triggers are considered.
+
+**How:**
+- `/api/community-triggers/propose` — Propose a new trigger (one per worker per event)
+- `/api/community-triggers/vote` — Vote for a trigger proposal (one vote per worker)
+- `/api/community-triggers/list` — List all proposals
+- Anti-fraud: Only authenticated workers can propose/vote; duplicate voting blocked
+- Proposals require admin review before activation
+- Powered by `/src/services/worker/community-triggers.service.ts`
+
+---
 
 ### Worker Dashboard
 - **At a glance:** Policy status (ACTIVE/EXPIRED), zone risk level (colour-coded), earnings protected this week, live disruption alerts in zone
