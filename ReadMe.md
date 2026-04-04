@@ -579,6 +579,8 @@ Three distinct ML components, each solving a specific problem:
 | Artifact | `app/artifacts/fraud_classifier.pkl` (236 KB) |
 | Fraud signals used | 8 |
 
+> **Note on AUC-ROC 1.0:** A perfect score is expected on clean synthetic data with no real-world noise — the synthetic dataset has fully separable class boundaries by design. This is a training baseline, not a production claim. Real-world performance will be re-evaluated and recalibrated against actual pilot claims data before any automated rejection decisions are made.
+
 **Key anomaly signals:**
 
 | Signal | Description | Weight |
@@ -912,6 +914,46 @@ STEP 7: Dashboard
 
 ## 15. Payout Processing
 
+### End-to-End Payout Flow
+
+```
+Disruption detected by Trigger Monitor (every 15 min)
+           ↓
+Dual-source confidence validated (≥ 75?)
+           ↓
+8-signal fraud check (≥ 4 consistent?)
+           ↓
+Claim record created → status: APPROVED
+           ↓
+Payout job added to Bull queue (Redis-backed, third-party npm library)
+           ↓
+Razorpay Payout API called → UPI credit
+           ↓
+DB updated → status: COMPLETED
+           ↓
+WhatsApp + push notification sent to worker
+           ↓
+Admin dashboard updated in real-time
+```
+
+### Payout SLA Targets
+
+| Stage | Target |
+|---|---|
+| Trigger detection → claim initiation | < 2 minutes |
+| Fraud check | < 90 seconds |
+| Razorpay API processing | < 3 minutes |
+| Worker UPI credit | < 10 minutes from trigger |
+| Notification delivery | < 11 minutes from trigger |
+
+### Failed Payout Handling
+
+Razorpay error → retry 3× with exponential backoff (1 min, 5 min, 15 min) → after 3 failures, flagged in admin dashboard → worker notified: *"Payout processing — will reflect within 24 hours."*
+
+### Worker-Facing Claim Status UX
+
+Workers navigating to `/claim-processing` see the 6-step animated zero-touch pipeline: trigger confirmed → zone match → eligibility check → fraud check (8 signals, < 90 sec) → UPI transfer (shimmer progress bar) → credited (confetti burst + payout breakdown card). No action required from the worker at any step.
+
 ---
 
 ## 23. Local Development (Monorepo)
@@ -970,45 +1012,37 @@ pnpm dev
 
 ---
 
-### End-to-End Payout Flow
-
-```
-Disruption detected by Trigger Monitor (every 15 min)
-           ↓
-Dual-source confidence validated (≥ 75?)
-           ↓
-8-signal fraud check (≥ 4 consistent?)
-           ↓
-Claim record created → status: APPROVED
-           ↓
-Payout job added to Bull queue (Redis-backed, third-party npm library)
-           ↓
-Razorpay Payout API called → UPI credit
-           ↓
-DB updated → status: COMPLETED
-           ↓
-WhatsApp + push notification sent to worker
-           ↓
-Admin dashboard updated in real-time
-```
-
-### Payout SLA Targets
-
-| Stage | Target |
-|---|---|
-| Trigger detection → claim initiation | < 2 minutes |
-| Fraud check | < 90 seconds |
-| Razorpay API processing | < 3 minutes |
-| Worker UPI credit | < 10 minutes from trigger |
-| Notification delivery | < 11 minutes from trigger |
-
-### Failed Payout Handling
-
-Razorpay error → retry 3× with exponential backoff (1 min, 5 min, 15 min) → after 3 failures, flagged in admin dashboard → worker notified: *"Payout processing — will reflect within 24 hours."*
-
----
-
 ## 16. Dashboard Design
+
+### Worker Dashboard
+
+The worker-facing PWA dashboard gives every covered delivery partner full real-time visibility into their protection status:
+
+| Panel | Content |
+|---|---|
+| **Policy Status** | ACTIVE / EXPIRED badge, current tier (Basic / Standard / Premium), zone name, policy expiry date |
+| **Zone Risk Meter** | Colour-coded risk level for the worker's registered zone (green / amber / red) based on live trigger signals |
+| **Active Disruption Alerts** | Live cards for any T1–T7 trigger currently active in the worker's zone |
+| **Earnings Protected** | Total payout received this week; cumulative since enrollment |
+| **Payout History** | List of past claims with trigger type, event date, amount, and UPI reference |
+| **Next Week's Premium** | ML-estimated premium for the upcoming week with zone safety note |
+| **Claim Status** | Animated 6-step pipeline (`/claim-processing`) shown immediately after a trigger fires in the worker's zone |
+
+Authentication: JWT Bearer token from OTP onboarding session. Workers can only view their own data.
+
+### Admin / Insurer Dashboard
+
+The admin panel (`/admin-dashboard`) is the operations nerve centre:
+
+| Panel | Content |
+|---|---|
+| **Live Overview** | Active policies, weekly premium pool total, claims auto-approved vs. flagged this week, current loss ratio |
+| **Trigger Event Log** | Real-time feed of trigger activations by city and zone, with confidence score and dual-source status |
+| **Zone Heatmap** | City-level map showing active trigger zones, claim density, and loss ratio per pin code |
+| **Fraud Queue** | Claims flagged for manual review; 2-hour SLA; actions: approve / reject / escalate |
+| **Loss Ratio Trend** | 12-week rolling loss ratio chart with IRDAI 70% cap reference line |
+| **Predictive Alerts** | Next-week risk signals per zone (e.g., *"72% probability of T1 trigger in BLR_KOR_01 — monsoon forecast"*) |
+| **Workers Table** | Search by worker ID, zone, tier, claim history, fraud flag status |
 
 ---
 
