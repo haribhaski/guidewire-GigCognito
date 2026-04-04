@@ -22,6 +22,7 @@ This service powers the backend for GigCognito's parametric insurance platform. 
 - Workers can propose and vote on new parametric triggers.
 - One vote per worker (anti-fraud logic enforced).
 - News verification is run immediately at proposal submission.
+- News verification is wording-agnostic (fuzzy + typo-tolerant matching against local/news evidence).
 - Only news-verified proposals with >50% zone voter support move to `UNDER_REVIEW`.
 - News-verified proposals below the vote threshold remain tagged as `LESS_VOTES`.
 - Proposals without news evidence are rejected.

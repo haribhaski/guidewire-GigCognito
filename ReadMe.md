@@ -801,7 +801,7 @@ const payout = await razorpay.payouts.create({
 | Heavy Rain / Flooding | OpenWeatherMap + IMD | ✅ | ✅ Yes | Node backend |
 | AQI / Pollution | AQICN + CPCB | ✅ | ✅ Yes | Node backend |
 | Heatwave | OpenWeatherMap + IMD | ✅ | ✅ Yes | Node backend |
-| Curfew / Strike | NewsData.io / PIB | ⚠️ 12hr delay | ❌ Mocked | Mock for demo |
+| Curfew / Strike / Local Disruption Evidence | NewsData.io + optional RSS feeds (PIB/state/city) | ✅ (free tier) | ⚠️ Near real-time (depends on source lag) | Node backend verifier + scored matching |
 | Festival Blockage | Municipal calendar | ✅ | Pre-loaded | DB lookup |
 | Worker Location | Browser Geolocation | ✅ | ✅ Yes | Frontend → HTTPS |
 | Payments | Razorpay sandbox | ✅ | ✅ Yes | Node backend |
@@ -968,15 +968,15 @@ Razorpay error → retry 3× with exponential backoff (1 min, 5 min, 15 min) →
 - `/api/community-triggers/list` — List all proposals
 - Anti-fraud: Only authenticated workers can propose/vote; duplicate voting blocked
 - Zone guard: workers can vote only on proposals in their own registered zone
-- Community threshold: proposal enters approval evaluation only after **>50% area vote share**
+- News verification is executed immediately at post submission (no delayed check)
+- Verifier is wording-agnostic and typo-tolerant (fuzzy token + n-gram scoring) to handle varied phrasing
+- Community threshold: only news-verified proposals with **>50% area vote share** move to review
   : vote share = proposal votes / total eligible workers in that zone
-- Local verification: once threshold is crossed, server validates with local posts/news channel feed before approval
-  : configure `LOCAL_SOURCE_FEED_URL` (or `LOCAL_NEWS_FEED_URL`) for external evidence checks
-  : quick local setup: `LOCAL_NEWS_FEED_URL=http://localhost:8000/feeds/local-news`
+  : configure `NEWSDATA_API_KEY` (and optional `PIB_RSS_URLS`) for richer external evidence
 - Status flow:
-  : `PENDING` (<50% vote share)
-  : `UNDER_REVIEW` (threshold crossed but source evidence not yet verified)
-  : `APPROVED` (threshold crossed + source evidence verified)
+  : `REJECTED` (no matching local/news evidence at submission time)
+  : `LESS_VOTES` (news verified, but vote share ≤ 50%)
+  : `UNDER_REVIEW` (news verified and vote share > 50%)
 - Powered by `/src/services/worker/community-triggers.service.ts`
 
 ---
