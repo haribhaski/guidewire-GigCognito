@@ -1,9 +1,16 @@
 import axios from "axios";
 import { evaluateTrigger } from "./trigger-engine.service";
+import { isTriggerApprovedForZone } from "../worker/community-triggers.service";
 
 const CURFEW_FEED_URL = process.env.CURFEW_FEED_URL;
 
 export async function checkCurfewTrigger(zone: { id: string; lat: number; lng: number }) {
+	const communityApproved = isTriggerApprovedForZone(zone.id, "T5_CURFEW");
+	if (!communityApproved) {
+		console.log(`[Curfew] Zone ${zone.id} | waiting for community approval (>=50% zone votes)`);
+		return null;
+	}
+
 	if (!CURFEW_FEED_URL) {
 		console.warn("[Curfew] CURFEW_FEED_URL missing; skipping curfew trigger check");
 		return null;
