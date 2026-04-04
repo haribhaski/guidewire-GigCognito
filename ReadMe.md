@@ -48,6 +48,7 @@ Phase 2 implementation complete. All core systems are live and API-backed.
 6. [Application Workflow](#6-application-workflow)
 7. [Parametric Trigger Design](#7-parametric-trigger-design)
 8. [Weekly Premium Model & Business Viability](#8-weekly-premium-model--business-viability)
+    - [8A. Underwriting, Triggers, Pricing & Actuarial Logic](#8a-underwriting-triggers-pricing--actuarial-logic-parametric-insurance)
 9. [Policy Logic & Coverage Boundaries](#9-policy-logic--coverage-boundaries)
 10. [AI/ML Architecture](#10-aiml-architecture)
 11. [Adversarial Defense & Anti-Spoofing Strategy](#11-adversarial-defense--anti-spoofing-strategy)
@@ -56,12 +57,12 @@ Phase 2 implementation complete. All core systems are live and API-backed.
 14. [Onboarding Flow](#14-onboarding-flow)
 15. [Payout Processing](#15-payout-processing)
 16. [Dashboard Design](#16-dashboard-design)
-17. [Non-Functional Requirements](#17-non-functional-requirements)
-18. [Development Roadmap](#18-development-roadmap)
-19. [Business Viability & Regulatory Alignment](#19-business-viability--regulatory-alignment)
-20. [Appendix: Data Sources](#20-appendix-data-sources)
-21. [Worker Transparency Dashboard](#21-worker-transparency-dashboard)
-22. [Community Voting for New Triggers](#22-community-voting-for-new-triggers)
+17. [Worker Transparency Dashboard (2026)](#17-worker-transparency-dashboard-2026)
+18. [Community Voting for New Triggers (2026)](#18-community-voting-for-new-triggers-2026)
+19. [Non-Functional Requirements](#19-non-functional-requirements)
+20. [Development Roadmap](#20-development-roadmap)
+21. [Business Viability & Regulatory Alignment](#21-business-viability--regulatory-alignment)
+22. [Appendix: Data Sources](#22-appendix-data-sources)
 23. [Local Development (Monorepo)](#23-local-development-monorepo)
 
 ---
@@ -1046,7 +1047,7 @@ The admin panel (`/admin-dashboard`) is the operations nerve centre:
 
 ---
 
-## 21. Worker Transparency Dashboard (2026)
+## 17. Worker Transparency Dashboard (2026)
 
 **What:** A real-time dashboard for gig workers showing trigger status, payout pool, and risk signals for their zone.
 
@@ -1059,7 +1060,7 @@ The admin panel (`/admin-dashboard`) is the operations nerve centre:
 
 ---
 
-## 22. Community Voting for New Triggers (2026)
+## 18. Community Voting for New Triggers (2026)
 
 **What:** Workers can propose and vote on new parametric triggers (e.g., "Flooded Street", "Festival Blockage").
 
@@ -1084,7 +1085,7 @@ The admin panel (`/admin-dashboard`) is the operations nerve centre:
 
 ---
 
-## 17. Non-Functional Requirements
+## 19. Non-Functional Requirements
 
 ### Security
 
@@ -1131,7 +1132,7 @@ The admin panel (`/admin-dashboard`) is the operations nerve centre:
 
 ---
 
-## 18. Development Roadmap
+## 20. Development Roadmap
 
 ### Phase 1 — Ideation & Foundation [March 4–20] ✅ Complete
 
@@ -1183,7 +1184,7 @@ The admin panel (`/admin-dashboard`) is the operations nerve centre:
 
 ---
 
-## 19. Business Viability & Regulatory Alignment
+## 21. Business Viability & Regulatory Alignment
 
 ### Market Opportunity
 
@@ -1243,7 +1244,7 @@ KaryaKavach is designed as an **insurer-partnered parametric protection platform
 
 ---
 
-## 20. Appendix: Data Sources
+## 22. Appendix: Data Sources
 
 ### Key Data Sources
 
